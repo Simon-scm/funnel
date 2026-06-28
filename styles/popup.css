@@ -1,0 +1,99 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 420px;
+  min-height: 420px;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f7f7f7;
+  color: #1f1f1f;
+}
+
+.app {
+  padding: 14px;
+}
+
+.app-header {
+  margin-bottom: 14px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.app-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.summary-card {
+  margin-bottom: 12px;
+}
+
+.summary-card label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#summaryOutput {
+  min-height: 260px;
+  max-height: 360px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: white;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  color: #555;
+}
+
+.meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta strong {
+  color: #1f1f1f;
+}
+
+button {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #1f1f1f;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #333;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
