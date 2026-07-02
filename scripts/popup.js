@@ -13,6 +13,7 @@ const statusText = document.querySelector("#status");
 // Setup view elements
 const setupView = document.querySelector("#setupView");
 const providerSelect = document.querySelector("#providerSelect");
+const apiKeySavedNote = document.querySelector("#apiKeySavedNote");
 const apiKeyInput = document.querySelector("#apiKeyInput");
 const modelInput = document.querySelector("#modelInput");
 const saveSettingsBtn = document.querySelector("#saveSettingsBtn");
@@ -23,6 +24,7 @@ const summaryMeta = document.querySelector("#summaryMeta");
 const summaryUrl = document.querySelector("#summaryUrl");
 const summaryTimestamp = document.querySelector("#summaryTimestamp");
 const summaryOutput = document.querySelector("#summaryOutput");
+const copySummaryBtn = document.querySelector("#copySummaryBtn");
 const charCount = document.querySelector("#charCount");
 const summarizeBtn = document.querySelector("#summarizeBtn");
 const settingsBtn = document.querySelector("#settingsBtn");
@@ -59,6 +61,7 @@ providerSelect.addEventListener("change", () => {
 saveSettingsBtn.addEventListener("click", async () => {
   const provider = providerSelect.value;
   const apiKey = apiKeyInput.value.trim();
+  const existingApiKey = currentSettings?.apiKey || "";
   const model = modelInput.value.trim() || DEFAULT_MODELS[provider];
 
   if (!provider) {
@@ -66,14 +69,14 @@ saveSettingsBtn.addEventListener("click", async () => {
     return;
   }
 
-  if (!apiKey) {
+  if (!apiKey && !existingApiKey) {
     statusText.textContent = "Enter an API key.";
     return;
   }
 
   const settings = {
     provider,
-    apiKey,
+    apiKey: apiKey || existingApiKey,
     model
   };
 
@@ -93,6 +96,19 @@ summarizeBtn.addEventListener("click", async () => {
   }
 
   await runSummaryFlow(currentSettings);
+});
+
+
+copySummaryBtn.addEventListener("click", async () => {
+  const text = summaryOutput.textContent.trim();
+
+  if (!text || text === "Click Summarize to analyze the current page.") {
+    statusText.textContent = "No summary to copy.";
+    return;
+  }
+
+  await navigator.clipboard.writeText(text);
+  statusText.textContent = "Summary copied.";
 });
 
 
@@ -227,6 +243,7 @@ function fillSetupForm(settings) {
     providerSelect.value = "openai";
     modelInput.value = DEFAULT_MODELS.openai;
     apiKeyInput.value = "";
+    apiKeySavedNote.hidden = true;
     return;
   }
 
@@ -235,7 +252,8 @@ function fillSetupForm(settings) {
     settings.model ||
     DEFAULT_MODELS[settings.provider] ||
     "";
-  apiKeyInput.value = settings.apiKey || "";
+  apiKeyInput.value = "";
+  apiKeySavedNote.hidden = !settings.apiKey;
 }
 
 
