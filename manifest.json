@@ -3,18 +3,25 @@
     "description": "Summarize the page content with AI",
     "version": "1.0",
     "manifest_version": 3,
-    "permissions": ["activeTab", "scripting", "tabs", "storage"],
+    "permissions": ["activeTab", "scripting", "tabs", "storage", "sidePanel"],
     "host_permissions": [
+        "http://*/*",
+        "https://*/*",
         "https://api.openai.com/*",
         "https://generativelanguage.googleapis.com/*",
         "https://api.anthropic.com/*"],
+    "background": {
+        "service_worker": "scripts/background.js"
+    },
     "action": {
-        "default_popup": "popup.html",
-        "icons": {
+        "default_icon": {
             "16": "images/icon-16.png",
             "32": "images/icon-32.png",
             "48": "images/icon-48.png",
             "128": "images/icon-128.png"
         }
+    },
+    "side_panel": {
+        "default_path": "popup.html"
     }
 }
