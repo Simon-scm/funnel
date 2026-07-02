@@ -1,4 +1,5 @@
 const SETTINGS_KEY = "funnelSettings";
+const LAST_SUMMARY_KEY = "funnelLastSummary";
 
 const DEFAULT_MODELS = {
   openai: "gpt-4.1-mini",
@@ -18,18 +19,24 @@ const saveSettingsBtn = document.querySelector("#saveSettingsBtn");
 
 // Summary view elements
 const summaryView = document.querySelector("#summaryView");
+const summaryMeta = document.querySelector("#summaryMeta");
+const summaryUrl = document.querySelector("#summaryUrl");
+const summaryTimestamp = document.querySelector("#summaryTimestamp");
 const summaryOutput = document.querySelector("#summaryOutput");
 const charCount = document.querySelector("#charCount");
-const retryBtn = document.querySelector("#retryBtn");
+const summarizeBtn = document.querySelector("#summarizeBtn");
 const settingsBtn = document.querySelector("#settingsBtn");
+const clearSummaryBtn = document.querySelector("#clearSummaryBtn");
 const clearKeyBtn = document.querySelector("#clearKeyBtn");
 
 let currentSettings = null;
+let lastSummary = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   initializeProviderDefaults();
 
   currentSettings = await loadSettings();
+  lastSummary = await loadLastSummary();
 
   if (!hasValidSettings(currentSettings)) {
     showSetupView();
@@ -38,7 +45,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   fillSetupForm(currentSettings);
   showSummaryView();
-  await runSummaryFlow(currentSettings);
 });
 
 
@@ -56,12 +62,12 @@ saveSettingsBtn.addEventListener("click", async () => {
   const model = modelInput.value.trim() || DEFAULT_MODELS[provider];
 
   if (!provider) {
-    statusText.textContent = "Bitte KI-Anbieter auswählen.";
+    statusText.textContent = "Select an AI provider.";
     return;
   }
 
   if (!apiKey) {
-    statusText.textContent = "Bitte API-Key eingeben.";
+    statusText.textContent = "Enter an API key.";
     return;
   }
 
@@ -76,12 +82,11 @@ saveSettingsBtn.addEventListener("click", async () => {
   currentSettings = settings;
 
   showSummaryView();
-  await runSummaryFlow(currentSettings);
 });
 
 
 
-retryBtn.addEventListener("click", async () => {
+summarizeBtn.addEventListener("click", async () => {
   if (!hasValidSettings(currentSettings)) {
     showSetupView();
     return;
@@ -91,10 +96,19 @@ retryBtn.addEventListener("click", async () => {
 });
 
 
-
 settingsBtn.addEventListener("click", () => {
   fillSetupForm(currentSettings);
   showSetupView();
+});
+
+
+
+clearSummaryBtn.addEventListener("click", async () => {
+  await clearLastSummary();
+
+  lastSummary = null;
+  showSummaryView();
+  statusText.textContent = "Summary cleared.";
 });
 
 
@@ -108,7 +122,7 @@ clearKeyBtn.addEventListener("click", async () => {
   charCount.textContent = "0";
 
   showSetupView();
-  statusText.textContent = "API-Key wurde gelöscht.";
+  statusText.textContent = "API key deleted.";
 });
 
 
@@ -141,10 +155,31 @@ async function loadSettings() {
 
 
 
+async function loadLastSummary() {
+  const data = await chrome.storage.local.get(LAST_SUMMARY_KEY);
+  return data[LAST_SUMMARY_KEY] || null;
+}
+
+
+
 async function saveSettings(settings) {
   await chrome.storage.local.set({
     [SETTINGS_KEY]: settings
   });
+}
+
+
+
+async function saveLastSummary(summary) {
+  await chrome.storage.local.set({
+    [LAST_SUMMARY_KEY]: summary
+  });
+}
+
+
+
+async function clearLastSummary() {
+  await chrome.storage.local.remove(LAST_SUMMARY_KEY);
 }
 
 
@@ -158,7 +193,7 @@ async function clearSettings() {
 function showSetupView() {
   setupView.hidden = false;
   summaryView.hidden = true;
-  statusText.textContent = "Setup erforderlich.";
+  statusText.textContent = "Setup required.";
 }
 
 
@@ -166,6 +201,23 @@ function showSetupView() {
 function showSummaryView() {
   setupView.hidden = true;
   summaryView.hidden = false;
+
+  if (lastSummary) {
+    statusText.textContent = "Last summary loaded.";
+    summaryMeta.hidden = false;
+    summaryUrl.textContent = lastSummary.url || "Unknown page";
+    summaryTimestamp.textContent = formatTimestamp(lastSummary.createdAt);
+    summaryOutput.textContent = lastSummary.text;
+    charCount.textContent = String(lastSummary.charCount || 0);
+    return;
+  }
+
+  summaryMeta.hidden = true;
+  summaryUrl.textContent = "";
+  summaryTimestamp.textContent = "";
+  statusText.textContent = "Ready to summarize.";
+  summaryOutput.textContent = "Click Summarize to analyze the current page.";
+  charCount.textContent = "0";
 }
 
 
@@ -192,7 +244,8 @@ async function runSummaryFlow(settings) {
   setLoadingState(true);
 
   try {
-    const pageText = await getCurrentPageContent();
+    const pageContent = await getCurrentPageContent();
+    const pageText = pageContent.text;
 
     charCount.textContent = String(pageText.length);
 
@@ -204,14 +257,67 @@ async function runSummaryFlow(settings) {
 
     const summary = await summarizeText(pageText, settings);
 
+    lastSummary = {
+      text: summary,
+      charCount: pageText.length,
+      url: pageContent.url,
+      createdAt: new Date().toISOString()
+    };
+    await saveLastSummary(lastSummary);
+
     summaryOutput.textContent = summary;
+    summaryMeta.hidden = false;
+    summaryUrl.textContent = lastSummary.url || "Unknown page";
+    summaryTimestamp.textContent = formatTimestamp(lastSummary.createdAt);
     statusText.textContent = "Summary created.";
   } catch (error) {
-    summaryOutput.textContent = `Error: ${error.message}`;
-    statusText.textContent = "Error while analyzing content.";
+    summaryOutput.textContent = getFriendlyErrorMessage(error);
+    statusText.textContent = "Could not create summary.";
   } finally {
     setLoadingState(false);
   }
+}
+
+function formatTimestamp(value) {
+  if (!value) {
+    return "Unknown time";
+  }
+
+  return new Date(value).toLocaleString();
+}
+
+function getFriendlyErrorMessage(error) {
+  const message = error.message || "";
+
+  if (/No active tab/i.test(message)) {
+    return "Open a webpage first, then try summarizing again.";
+  }
+
+  if (/Cannot access|chrome:|Cannot script/i.test(message)) {
+    return "This page cannot be analyzed by the extension. Try a regular webpage.";
+  }
+
+  if (/Failed to fetch|NetworkError|CORS/i.test(message)) {
+    return "The request could not reach the selected AI provider. Check your connection and provider access.";
+  }
+
+  if (/API error (401|403)/i.test(message)) {
+    return "The API key was rejected. Check the selected provider and API key.";
+  }
+
+  if (/API error 429/i.test(message)) {
+    return "The provider rate limit was reached. Wait a moment and try again.";
+  }
+
+  if (/API error (400|404)/i.test(message)) {
+    return "The provider rejected the request. Check that the selected model name is valid.";
+  }
+
+  if (/blocked the request/i.test(message)) {
+    return "The provider blocked this page content and did not return a summary.";
+  }
+
+  return "Something went wrong while creating the summary. Check your settings and try again.";
 }
 
 
@@ -223,7 +329,7 @@ async function getCurrentPageContent() {
   });
 
   if (!tab || !tab.id) {
-    throw new Error("Kein aktiver Tab gefunden.");
+    throw new Error("No active tab found.");
   }
 
   const results = await chrome.scripting.executeScript({
@@ -231,7 +337,10 @@ async function getCurrentPageContent() {
     func: extractPageContent
   });
 
-  return results[0].result || "";
+  return {
+    text: results[0].result || "",
+    url: tab.url || ""
+  };
 }
 
 
@@ -277,12 +386,14 @@ async function summarizeText(text, settings) {
     return summarizeWithAnthropic(text, settings);
   }
 
-  throw new Error(`Unbekannter Provider: ${settings.provider}`);
+  throw new Error(`Unknown provider: ${settings.provider}`);
 }
 
 
 
-async function summarizeWithOpenAI(text, settings) {
+
+
+function buildSummaryPrompts(text) {
   const systemPrompt = `
 You are a precise webpage summarization assistant.
 
@@ -299,7 +410,7 @@ Rules:
 
 Output format:
 1. Start with a one-sentence overview.
-2. Then provide 3–7 bullet points with the most important information.
+2. Then provide 3-7 bullet points with the most important information.
 `.trim();
 
   const userPrompt = `
@@ -310,6 +421,15 @@ Please summarize the meaningful page content.
 Webpage content:
 ${text}
 `.trim();
+
+  return {
+    systemPrompt,
+    userPrompt
+  };
+}
+
+async function summarizeWithOpenAI(text, settings) {
+  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -330,7 +450,7 @@ ${text}
         }
       ]
     })
-  })
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -338,8 +458,6 @@ ${text}
   }
 
   const data = await response.json();
-  console.log("OpenAI response:", data);
-
   const summary = extractOpenAIText(data);
 
   if (!summary) {
@@ -352,39 +470,113 @@ ${text}
 
 
 async function summarizeWithGemini(text, settings) {
-  return [
-    "Gemini Dummy Summary",
-    "",
-    `Provider: Google Gemini`,
-    `Model: ${settings.model}`,
-    `Extrahierte Zeichen: ${text.length}`,
-    "",
-    "Hier wird später die echte Gemini-Zusammenfassung stehen."
-  ].join("\n");
-}
+  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
+  const model = settings.model.startsWith("models/") ? settings.model : `models/${settings.model}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
 
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [
+          {
+            text: systemPrompt
+          }
+        ]
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: userPrompt
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: 900
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.promptFeedback && data.promptFeedback.blockReason) {
+    throw new Error(`Gemini blocked the request: ${data.promptFeedback.blockReason}`);
+  }
+
+  const summary = (data.candidates || [])
+    .flatMap((candidate) => candidate.content?.parts || [])
+    .map((part) => typeof part.text === "string" ? part.text : "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  return summary || "No summary returned.";
+}
 
 
 async function summarizeWithAnthropic(text, settings) {
-  return [
-    "Claude Dummy Summary",
-    "",
-    `Provider: Anthropic Claude`,
-    `Model: ${settings.model}`,
-    `Extrahierte Zeichen: ${text.length}`,
-    "",
-    "Hier wird später die echte Claude-Zusammenfassung stehen."
-  ].join("\n");
+  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": settings.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: settings.model,
+      max_tokens: 900,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: userPrompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const summary = (data.content || [])
+    .map((contentItem) => {
+      if (contentItem.type === "text" && typeof contentItem.text === "string") {
+        return contentItem.text;
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  return summary || "No summary returned.";
 }
 
 
-
 function setLoadingState(isLoading) {
-  retryBtn.disabled = isLoading;
+  summarizeBtn.disabled = isLoading;
   saveSettingsBtn.disabled = isLoading;
 
   if (isLoading) {
-    statusText.textContent = "Analizing page content...";
+    statusText.textContent = "Analyzing page content...";
     summaryOutput.textContent = "Loading content...";
   }
 }

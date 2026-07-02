@@ -9,8 +9,24 @@
   <body>
     <main class="app">
       <header class="app-header">
-        <h1>funnel.ai</h1>
-        <p id="status">Setup required.</p>
+        <div>
+          <h1>funnel.ai</h1>
+          <p id="status">Setup required.</p>
+        </div>
+
+        <section class="top-actions">
+          <button id="clearSummaryBtn" class="secondary-button" type="button">
+            Clear
+          </button>
+
+          <button id="clearKeyBtn" class="secondary-button danger-button" type="button">
+            Delete Key
+          </button>
+
+          <button id="settingsBtn" class="icon-button" type="button" aria-label="Settings" title="Settings">
+            &#9881;
+          </button>
+        </section>
       </header>
 
       <section id="setupView" class="card">
@@ -54,8 +70,20 @@
       </section>
 
       <section id="summaryView" hidden>
+        <section class="summary-meta" id="summaryMeta" hidden>
+          <div>
+            <span>Page</span>
+            <strong id="summaryUrl"></strong>
+          </div>
+
+          <div>
+            <span>Created</span>
+            <strong id="summaryTimestamp"></strong>
+          </div>
+        </section>
+
         <section class="summary-card">
-          <pre id="summaryOutput">Analyzing current page...</pre>
+          <pre id="summaryOutput">Click Summarize to analyze the current page.</pre>
         </section>
 
         <section class="meta">
@@ -64,18 +92,8 @@
             <strong id="charCount">0</strong>
           </div>
 
-          <button id="retryBtn" type="button">
-            Reload
-          </button>
-        </section>
-
-        <section class="actions">
-          <button id="settingsBtn" type="button">
-            Settings
-          </button>
-
-          <button id="clearKeyBtn" type="button">
-            Delete API key
+          <button id="summarizeBtn" type="button">
+            Summarize
           </button>
         </section>
       </section>
