@@ -283,15 +283,70 @@ async function summarizeText(text, settings) {
 
 
 async function summarizeWithOpenAI(text, settings) {
-  return [
-    "OpenAI Dummy Summary",
-    "",
-    `Provider: OpenAI / ChatGPT`,
-    `Model: ${settings.model}`,
-    `Extrahierte Zeichen: ${text.length}`,
-    "",
-    "Hier wird später die echte OpenAI-Zusammenfassung stehen."
-  ].join("\n");
+  const systemPrompt = `
+You are a precise webpage summarization assistant.
+
+Summarize the extracted webpage content so the user can quickly understand what the page is about.
+
+Rules:
+- Use only the provided content.
+- Do not invent facts, claims, names, numbers, or conclusions.
+- Ignore navigation menus, cookie banners, ads, repeated UI text, newsletter prompts, and unrelated boilerplate.
+- Focus on the main topic, key points, important details, and actionable information.
+- If the content is mostly empty, noisy, or not enough to summarize, say that clearly.
+- Write in the same language as the provided content.
+- Keep the answer concise.
+
+Output format:
+1. Start with a one-sentence overview.
+2. Then provide 3–7 bullet points with the most important information.
+`.trim();
+
+  const userPrompt = `
+Here is extracted text from a webpage. It may contain navigation, ads, cookie banners, or repeated UI text.
+
+Please summarize the meaningful page content.
+
+Webpage content:
+${text}
+`.trim();
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${settings.apiKey}`
+    },
+    body: JSON.stringify({
+      model: settings.model,
+      input: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: userPrompt
+        }
+      ]
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log("OpenAI response:", data);
+
+  const summary = extractOpenAIText(data);
+
+  if (!summary) {
+    return "No summary returned.";
+  }
+
+  return summary;
 }
 
 
@@ -332,4 +387,27 @@ function setLoadingState(isLoading) {
     statusText.textContent = "Analizing page content...";
     summaryOutput.textContent = "Loading content...";
   }
+}
+
+function extractOpenAIText(data) {
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  if (!Array.isArray(data.output)) {
+    return "";
+  }
+
+  return data.output
+    .flatMap((outputItem) => outputItem.content || [])
+    .map((contentItem) => {
+      if (typeof contentItem.text === "string") {
+        return contentItem.text;
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }

@@ -4,6 +4,10 @@
     "version": "1.0",
     "manifest_version": 3,
     "permissions": ["activeTab", "scripting", "tabs", "storage"],
+    "host_permissions": [
+        "https://api.openai.com/*",
+        "https://generativelanguage.googleapis.com/*",
+        "https://api.anthropic.com/*"],
     "action": {
         "default_popup": "popup.html",
         "icons": {
