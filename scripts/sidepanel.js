@@ -9,6 +9,7 @@ const setupView = document.querySelector("#setupView");
 const providerSelect = document.querySelector("#providerSelect");
 const apiKeySavedNote = document.querySelector("#apiKeySavedNote");
 const apiKeyInput = document.querySelector("#apiKeyInput");
+const clearStoredKeyBtn = document.querySelector("#clearStoredKeyBtn");
 const modelInput = document.querySelector("#modelInput");
 const saveSettingsBtn = document.querySelector("#saveSettingsBtn");
 const summaryView = document.querySelector("#summaryView");
@@ -108,16 +109,13 @@ clearSummaryBtn.addEventListener("click", async () => {
   statusText.textContent = "Summary cleared.";
 });
 
+clearStoredKeyBtn.addEventListener("click", async () => {
+  await deleteApiKey();
+});
+
 clearKeyBtn.addEventListener("click", async () => {
-  await clearSettings();
-
-  currentSettings = null;
-  apiKeyInput.value = "";
-  summaryOutput.textContent = "";
-  charCount.textContent = "0";
-
+  await deleteApiKey();
   showSetupView();
-  statusText.textContent = "API key deleted.";
 });
 
 function initializeProviderDefaults() {
@@ -200,7 +198,7 @@ function fillSetupForm(settings) {
     providerSelect.value = "openai";
     modelInput.value = DEFAULT_MODELS.openai;
     apiKeyInput.value = "";
-    apiKeySavedNote.hidden = true;
+    updateSavedKeyState(false);
     return;
   }
 
@@ -210,7 +208,23 @@ function fillSetupForm(settings) {
     DEFAULT_MODELS[settings.provider] ||
     "";
   apiKeyInput.value = "";
-  apiKeySavedNote.hidden = !settings.apiKey;
+  updateSavedKeyState(Boolean(settings.apiKey));
+}
+
+async function deleteApiKey() {
+  await clearSettings();
+
+  currentSettings = null;
+  apiKeyInput.value = "";
+  summaryOutput.textContent = "";
+  charCount.textContent = "0";
+  updateSavedKeyState(false);
+  statusText.textContent = "API key deleted.";
+}
+
+function updateSavedKeyState(hasSavedKey) {
+  apiKeySavedNote.hidden = !hasSavedKey;
+  clearStoredKeyBtn.hidden = !hasSavedKey;
 }
 
 async function runSummaryFlow(settings) {

@@ -44,12 +44,24 @@
           <div id="apiKeySavedNote" class="saved-note" hidden>
             API key saved. Leave blank to keep it.
           </div>
-          <input
-            id="apiKeyInput"
-            type="password"
-            placeholder="Paste your API key"
-            autocomplete="off"
-          />
+          <div class="api-key-input-wrap">
+            <input
+              id="apiKeyInput"
+              type="password"
+              placeholder="Paste your API key"
+              autocomplete="off"
+            />
+
+            <button id="clearStoredKeyBtn" class="input-icon-button" type="button" aria-label="Delete saved API key" title="Delete saved API key" hidden>
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M3 6h18"></path>
+                <path d="M8 6V4h8v2"></path>
+                <path d="M6 6l1 15h10l1-15"></path>
+                <path d="M10 10v7"></path>
+                <path d="M14 10v7"></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">

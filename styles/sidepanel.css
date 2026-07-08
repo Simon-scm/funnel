@@ -123,6 +123,39 @@ select:focus {
   border-color: var(--primary);
 }
 
+.api-key-input-wrap {
+  position: relative;
+}
+
+.api-key-input-wrap input {
+  padding-right: 40px;
+}
+
+.input-icon-button {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  color: rgba(180, 35, 24, 0.7);
+}
+
+.input-icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.input-icon-button:hover {
+  background: rgba(180, 35, 24, 0.08);
+  color: var(--danger);
+}
+
 .hint {
   margin: 12px 0 0;
   font-size: 12px;
