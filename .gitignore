@@ -1,1 +1,39 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment / secrets
 .env
+.env.*
+*.pem
+*.key
+config.local.json
+secrets.json
+
+# Build output
+dist/
+build/
+out/
+
+# Dependencies, if you later use npm/WXT/Vite
+node_modules/
+
+# Package manager cache / lock files optional
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Chrome Web Store upload packages
+*.zip
+
+# Temporary files
+tmp/
+temp/
+.cache/
