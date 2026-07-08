@@ -244,6 +244,7 @@ async function runSummaryFlow(settings) {
     summaryTimestamp.textContent = formatTimestamp(lastSummary.createdAt);
     statusText.textContent = "Summary created.";
   } catch (error) {
+    showAttemptMeta(error.pageUrl, error.createdAt);
     summaryOutput.textContent = getFriendlyErrorMessage(error);
     statusText.textContent = "Could not create summary.";
   } finally {
@@ -261,15 +262,34 @@ async function getCurrentPageContent() {
     throw new Error("No active tab found.");
   }
 
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: extractPageContent
-  });
+  let results;
+
+  try {
+    results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractPageContent
+    });
+  } catch (error) {
+    error.pageUrl = tab.url || "";
+    error.createdAt = new Date().toISOString();
+    throw error;
+  }
 
   return {
     text: results[0].result || "",
     url: tab.url || ""
   };
+}
+
+function showAttemptMeta(url, createdAt) {
+  if (!url && !createdAt) {
+    return;
+  }
+
+  summaryMeta.hidden = false;
+  summaryUrl.textContent = url || "Unknown page";
+  summaryTimestamp.textContent = formatTimestamp(createdAt);
+  charCount.textContent = "0";
 }
 
 function extractPageContent() {
