@@ -31,11 +31,11 @@ Funnel uses a simple local pipeline:
 
 ```text
 User opens the extension
-→ Extension checks local settings
-→ On button click the current page content is extracted
-→ Text is cleaned and shortened
-→ Request is sent directly to the selected AI provider
-→ Summary is displayed in the sidepanel
+-> Extension checks local settings
+-> On button click the current page content is extracted
+-> Text is cleaned and shortened
+-> Request is sent directly to the selected AI provider
+-> Summary is displayed in the sidepanel
 ```
 
 ## Privacy
@@ -76,21 +76,21 @@ chrome://extensions
 
 ```text
 funnel/
-├── manifest.json
-├── sidepanel.html
-├── scripts/
-│   ├── ai-providers.js
-│   ├── background.js
-│   └── sidepanel.js
-├── styles/
-│   └── sidepanel.css
-├── images/
-│   ├── icon-16.png
-│   ├── icon-32.png
-│   ├── icon-48.png
-│   └── icon-128.png
-├── README.md
-└── PRIVACY.md
+|-- manifest.json
+|-- sidepanel.html
+|-- scripts/
+|   |-- ai-providers.js
+|   |-- background.js
+|   `-- sidepanel.js
+|-- styles/
+|   `-- sidepanel.css
+|-- images/
+|   |-- icon-16.png
+|   |-- icon-32.png
+|   |-- icon-48.png
+|   `-- icon-128.png
+|-- README.md
+`-- PRIVACY.md
 ```
 
 ## Manifest Permissions
@@ -115,17 +115,26 @@ Used to store the user's selected provider, model, and API key locally in the br
 
 ### Host Permissions
 
-Host permissions are used to send summarization requests directly to the selected AI provider.
+Funnel uses host permissions for two purposes:
 
-Example:
+1. To run the page-content extraction script on regular webpages when the user clicks **Summarize** from the side panel.
+2. To send summarization requests directly from the browser to the selected AI provider.
+
+Current manifest entries:
 
 ```json
 "host_permissions": [
-  "https://api.openai.com/*"
+  "http://*/*",
+  "https://*/*",
+  "https://api.openai.com/*",
+  "https://generativelanguage.googleapis.com/*",
+  "https://api.anthropic.com/*"
 ]
 ```
 
-Only providers that are actually supported should be listed in the manifest.
+`http://*/*` and `https://*/*` are required because the side panel triggers content extraction after the extension action has opened. The extension only reads page content after the user explicitly clicks **Summarize**.
+
+The provider-specific entries allow direct BYOK API requests to OpenAI, Google Gemini, and Anthropic Claude. Funnel does not send page content to any own backend server.
 
 ## API Keys
 
