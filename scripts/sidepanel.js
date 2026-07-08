@@ -1,24 +1,16 @@
+import { DEFAULT_MODELS, summarizeText } from "./ai-providers.js";
+
 const SETTINGS_KEY = "funnelSettings";
 const LAST_SUMMARY_KEY = "funnelLastSummary";
+const EMPTY_SUMMARY_TEXT = "Click Summarize to analyze the current page.";
 
-const DEFAULT_MODELS = {
-  openai: "gpt-4.1-mini",
-  gemini: "gemini-2.5-flash",
-  anthropic: "claude-sonnet-4-5"
-};
-
-// Global UI elements
 const statusText = document.querySelector("#status");
-
-// Setup view elements
 const setupView = document.querySelector("#setupView");
 const providerSelect = document.querySelector("#providerSelect");
 const apiKeySavedNote = document.querySelector("#apiKeySavedNote");
 const apiKeyInput = document.querySelector("#apiKeyInput");
 const modelInput = document.querySelector("#modelInput");
 const saveSettingsBtn = document.querySelector("#saveSettingsBtn");
-
-// Summary view elements
 const summaryView = document.querySelector("#summaryView");
 const summaryMeta = document.querySelector("#summaryMeta");
 const summaryUrl = document.querySelector("#summaryUrl");
@@ -49,14 +41,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   showSummaryView();
 });
 
-
-
 providerSelect.addEventListener("change", () => {
   const selectedProvider = providerSelect.value;
   modelInput.value = DEFAULT_MODELS[selectedProvider] || "";
 });
-
-
 
 saveSettingsBtn.addEventListener("click", async () => {
   const provider = providerSelect.value;
@@ -83,11 +71,8 @@ saveSettingsBtn.addEventListener("click", async () => {
   await saveSettings(settings);
 
   currentSettings = settings;
-
   showSummaryView();
 });
-
-
 
 summarizeBtn.addEventListener("click", async () => {
   if (!hasValidSettings(currentSettings)) {
@@ -98,11 +83,10 @@ summarizeBtn.addEventListener("click", async () => {
   await runSummaryFlow(currentSettings);
 });
 
-
 copySummaryBtn.addEventListener("click", async () => {
   const text = summaryOutput.textContent.trim();
 
-  if (!text || text === "Click Summarize to analyze the current page.") {
+  if (!text || text === EMPTY_SUMMARY_TEXT) {
     statusText.textContent = "No summary to copy.";
     return;
   }
@@ -111,13 +95,10 @@ copySummaryBtn.addEventListener("click", async () => {
   statusText.textContent = "Summary copied.";
 });
 
-
 settingsBtn.addEventListener("click", () => {
   fillSetupForm(currentSettings);
   showSetupView();
 });
-
-
 
 clearSummaryBtn.addEventListener("click", async () => {
   await clearLastSummary();
@@ -126,8 +107,6 @@ clearSummaryBtn.addEventListener("click", async () => {
   showSummaryView();
   statusText.textContent = "Summary cleared.";
 });
-
-
 
 clearKeyBtn.addEventListener("click", async () => {
   await clearSettings();
@@ -141,8 +120,6 @@ clearKeyBtn.addEventListener("click", async () => {
   statusText.textContent = "API key deleted.";
 });
 
-
-
 function initializeProviderDefaults() {
   if (!providerSelect.value) {
     providerSelect.value = "openai";
@@ -150,8 +127,6 @@ function initializeProviderDefaults() {
 
   modelInput.value = DEFAULT_MODELS[providerSelect.value] || "";
 }
-
-
 
 function hasValidSettings(settings) {
   return Boolean(
@@ -162,21 +137,15 @@ function hasValidSettings(settings) {
   );
 }
 
-
-
 async function loadSettings() {
   const data = await chrome.storage.local.get(SETTINGS_KEY);
   return data[SETTINGS_KEY] || null;
 }
 
-
-
 async function loadLastSummary() {
   const data = await chrome.storage.local.get(LAST_SUMMARY_KEY);
   return data[LAST_SUMMARY_KEY] || null;
 }
-
-
 
 async function saveSettings(settings) {
   await chrome.storage.local.set({
@@ -184,35 +153,25 @@ async function saveSettings(settings) {
   });
 }
 
-
-
 async function saveLastSummary(summary) {
   await chrome.storage.local.set({
     [LAST_SUMMARY_KEY]: summary
   });
 }
 
-
-
 async function clearLastSummary() {
   await chrome.storage.local.remove(LAST_SUMMARY_KEY);
 }
 
-
-
 async function clearSettings() {
   await chrome.storage.local.remove(SETTINGS_KEY);
 }
-
-
 
 function showSetupView() {
   setupView.hidden = false;
   summaryView.hidden = true;
   statusText.textContent = "Setup required.";
 }
-
-
 
 function showSummaryView() {
   setupView.hidden = true;
@@ -232,11 +191,9 @@ function showSummaryView() {
   summaryUrl.textContent = "";
   summaryTimestamp.textContent = "";
   statusText.textContent = "Ready to summarize.";
-  summaryOutput.textContent = "Click Summarize to analyze the current page.";
+  summaryOutput.textContent = EMPTY_SUMMARY_TEXT;
   charCount.textContent = "0";
 }
-
-
 
 function fillSetupForm(settings) {
   if (!settings) {
@@ -255,8 +212,6 @@ function fillSetupForm(settings) {
   apiKeyInput.value = "";
   apiKeySavedNote.hidden = !settings.apiKey;
 }
-
-
 
 async function runSummaryFlow(settings) {
   setLoadingState(true);
@@ -294,6 +249,53 @@ async function runSummaryFlow(settings) {
   } finally {
     setLoadingState(false);
   }
+}
+
+async function getCurrentPageContent() {
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+
+  if (!tab || !tab.id) {
+    throw new Error("No active tab found.");
+  }
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: extractPageContent
+  });
+
+  return {
+    text: results[0].result || "",
+    url: tab.url || ""
+  };
+}
+
+function extractPageContent() {
+  function cleanText(text) {
+    return text
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/[ \t]+/g, " ")
+      .replace(/^ +| +$/gm, "")
+      .replace(/\n\s+\n/g, "\n\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  const clone = document.body.cloneNode(true);
+
+  clone.querySelectorAll(
+    "script, style, nav, footer, aside, iframe, noscript, svg, button, form"
+  ).forEach((el) => el.remove());
+
+  const main =
+    clone.querySelector("article") ||
+    clone.querySelector("main") ||
+    clone;
+
+  return cleanText(main.innerText).slice(0, 12000);
 }
 
 function formatTimestamp(value) {
@@ -338,257 +340,6 @@ function getFriendlyErrorMessage(error) {
   return "Something went wrong while creating the summary. Check your settings and try again.";
 }
 
-
-
-async function getCurrentPageContent() {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
-
-  if (!tab || !tab.id) {
-    throw new Error("No active tab found.");
-  }
-
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: extractPageContent
-  });
-
-  return {
-    text: results[0].result || "",
-    url: tab.url || ""
-  };
-}
-
-
-
-function extractPageContent() {
-  function cleanText(text) {
-    return text
-      .replace(/\r\n/g, "\n")
-      .replace(/\r/g, "\n")
-      .replace(/[ \t]+/g, " ")
-      .replace(/^ +| +$/gm, "")
-      .replace(/\n\s+\n/g, "\n\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
-
-  const clone = document.body.cloneNode(true);
-
-  clone.querySelectorAll(
-    "script, style, nav, footer, aside, iframe, noscript, svg, button, form"
-  ).forEach((el) => el.remove());
-
-  const main =
-    clone.querySelector("article") ||
-    clone.querySelector("main") ||
-    clone;
-
-  return cleanText(main.innerText).slice(0, 12000);
-}
-
-
-
-async function summarizeText(text, settings) {
-  if (settings.provider === "openai") {
-    return summarizeWithOpenAI(text, settings);
-  }
-
-  if (settings.provider === "gemini") {
-    return summarizeWithGemini(text, settings);
-  }
-
-  if (settings.provider === "anthropic") {
-    return summarizeWithAnthropic(text, settings);
-  }
-
-  throw new Error(`Unknown provider: ${settings.provider}`);
-}
-
-
-
-
-
-function buildSummaryPrompts(text) {
-  const systemPrompt = `
-You are a precise webpage summarization assistant.
-
-Summarize the extracted webpage content so the user can quickly understand what the page is about.
-
-Rules:
-- Use only the provided content.
-- Do not invent facts, claims, names, numbers, or conclusions.
-- Ignore navigation menus, cookie banners, ads, repeated UI text, newsletter prompts, and unrelated boilerplate.
-- Focus on the main topic, key points, important details, and actionable information.
-- If the content is mostly empty, noisy, or not enough to summarize, say that clearly.
-- Write in the same language as the provided content.
-- Keep the answer concise.
-
-Output format:
-1. Start with a one-sentence overview.
-2. Then provide 3-7 bullet points with the most important information.
-`.trim();
-
-  const userPrompt = `
-Here is extracted text from a webpage. It may contain navigation, ads, cookie banners, or repeated UI text.
-
-Please summarize the meaningful page content.
-
-Webpage content:
-${text}
-`.trim();
-
-  return {
-    systemPrompt,
-    userPrompt
-  };
-}
-
-async function summarizeWithOpenAI(text, settings) {
-  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.apiKey}`
-    },
-    body: JSON.stringify({
-      model: settings.model,
-      input: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: userPrompt
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const summary = extractOpenAIText(data);
-
-  if (!summary) {
-    return "No summary returned.";
-  }
-
-  return summary;
-}
-
-
-
-async function summarizeWithGemini(text, settings) {
-  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
-  const model = settings.model.startsWith("models/") ? settings.model : `models/${settings.model}`;
-  const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [
-          {
-            text: systemPrompt
-          }
-        ]
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: userPrompt
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        maxOutputTokens: 900
-      }
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-
-  if (data.promptFeedback && data.promptFeedback.blockReason) {
-    throw new Error(`Gemini blocked the request: ${data.promptFeedback.blockReason}`);
-  }
-
-  const summary = (data.candidates || [])
-    .flatMap((candidate) => candidate.content?.parts || [])
-    .map((part) => typeof part.text === "string" ? part.text : "")
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-
-  return summary || "No summary returned.";
-}
-
-
-async function summarizeWithAnthropic(text, settings) {
-  const { systemPrompt, userPrompt } = buildSummaryPrompts(text);
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": settings.apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
-    body: JSON.stringify({
-      model: settings.model,
-      max_tokens: 900,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userPrompt
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const summary = (data.content || [])
-    .map((contentItem) => {
-      if (contentItem.type === "text" && typeof contentItem.text === "string") {
-        return contentItem.text;
-      }
-
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-
-  return summary || "No summary returned.";
-}
-
-
 function setLoadingState(isLoading) {
   summarizeBtn.disabled = isLoading;
   saveSettingsBtn.disabled = isLoading;
@@ -597,27 +348,4 @@ function setLoadingState(isLoading) {
     statusText.textContent = "Analyzing page content...";
     summaryOutput.textContent = "Loading content...";
   }
-}
-
-function extractOpenAIText(data) {
-  if (typeof data.output_text === "string" && data.output_text.trim()) {
-    return data.output_text.trim();
-  }
-
-  if (!Array.isArray(data.output)) {
-    return "";
-  }
-
-  return data.output
-    .flatMap((outputItem) => outputItem.content || [])
-    .map((contentItem) => {
-      if (typeof contentItem.text === "string") {
-        return contentItem.text;
-      }
-
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n")
-    .trim();
 }
